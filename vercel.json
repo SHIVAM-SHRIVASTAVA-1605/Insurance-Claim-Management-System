@@ -1,13 +1,28 @@
 {
-  "outputDirectory": "website",
   "routes": [
     {
-      "src": "/app.apk",
-      "dest": "/app.apk",
+      "src": "^/$",
+      "dest": "/website/index.html"
+    },
+    {
+      "src": "^/app.apk$",
+      "dest": "/website/app.apk",
       "headers": {
         "Content-Type": "application/vnd.android.package-archive",
         "Content-Disposition": "attachment; filename=Insurance-Claim-Management.apk"
       }
+    },
+    {
+      "src": "^/app/?$",
+      "dest": "/build/web/index.html"
+    },
+    {
+      "src": "^/app/(.*)$",
+      "dest": "/build/web/$1"
+    },
+    {
+      "src": "^/(.*)\\.(js|css|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|json|wasm|data)$",
+      "dest": "/build/web/$1"
     }
   ]
 }
