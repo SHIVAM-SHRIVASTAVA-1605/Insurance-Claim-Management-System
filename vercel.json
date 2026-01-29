@@ -1,41 +1,11 @@
 {
   "version": 2,
-  "routes": [
+  "buildCommand": "echo 'No build needed'",
+  "installCommand": "echo 'No install needed'",
+  "rewrites": [
     {
-      "src": "^/$",
-      "dest": "/website/index.html"
-    },
-    {
-      "src": "^/app\\.apk$",
-      "dest": "/website/app.apk",
-      "headers": {
-        "Content-Type": "application/vnd.android.package-archive",
-        "Content-Disposition": "attachment; filename=Insurance-Claim-Management.apk"
-      }
-    },
-    {
-      "src": "^/app$",
-      "dest": "/build/web/index.html"
-    },
-    {
-      "src": "^/app/$",
-      "dest": "/build/web/index.html"
-    },
-    {
-      "src": "^/app/(.*)$",
-      "dest": "/build/web/$1"
-    },
-    {
-      "src": "^/canvaskit/(.*)$",
-      "dest": "/build/web/canvaskit/$1"
-    },
-    {
-      "src": "^/assets/(.*)$",
-      "dest": "/build/web/assets/$1"
-    },
-    {
-      "src": "^/(main\\.dart\\.js|flutter\\.js|flutter_bootstrap\\.js|flutter_service_worker\\.js|version\\.json|manifest\\.json)$",
-      "dest": "/build/web/$1"
+      "source": "/(.*)",
+      "destination": "/website/index.html"
     }
   ]
 }
