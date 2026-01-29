@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../providers/claim_provider.dart';
 import '../models/claim_status.dart';
 import '../models/claim.dart';
+import '../services/export_service.dart';
+import '../utils/web_helper.dart'
+    if (dart.library.html) '../utils/web_helper_web.dart'
+    if (dart.library.io) '../utils/web_helper_io.dart';
 import 'claim_detail_screen.dart';
 import 'add_edit_claim_screen.dart';
 
@@ -150,6 +155,33 @@ class _DashboardScreenState extends State<DashboardScreen>
                             : FontWeight.normal,
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Export',
+            onSelected: (value) => _handleExport(context, value),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'pdf',
+                child: Row(
+                  children: [
+                    Icon(Icons.picture_as_pdf, size: 18, color: Colors.red),
+                    SizedBox(width: 12),
+                    Text('Export All to PDF'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'csv',
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart, size: 18, color: Colors.green),
+                    SizedBox(width: 12),
+                    Text('Export All to CSV'),
                   ],
                 ),
               ),
@@ -875,5 +907,89 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       ],
     );
+  }
+
+  Future<void> _handleExport(BuildContext context, String exportType) async {
+    final claimProvider = Provider.of<ClaimProvider>(context, listen: false);
+    final claims = claimProvider.allClaims;
+
+    if (claims.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No claims to export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Generating export...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      if (exportType == 'pdf') {
+        await ExportService.exportAllClaimsToPdf(claims);
+      } else if (exportType == 'csv') {
+        final csv = await ExportService.exportAllClaimsToCsv(claims);
+        final filename =
+            'all_claims_${DateTime.now().millisecondsSinceEpoch}.csv';
+
+        if (kIsWeb) {
+          // For web, download using blob
+          WebHelper.downloadFile(csv, filename);
+        } else {
+          // For mobile/desktop, save to file
+          final file = await ExportService.saveCsvToFile(csv, filename);
+          if (!context.mounted) return;
+          Navigator.pop(context); // Close loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('CSV saved to ${file.path}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+      }
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${exportType.toUpperCase()} exported successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 }

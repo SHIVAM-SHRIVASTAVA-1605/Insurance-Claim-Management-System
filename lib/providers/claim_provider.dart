@@ -11,6 +11,7 @@ class ClaimProvider extends ChangeNotifier {
   bool _isLoaded = false;
 
   List<Claim> get claims => List.unmodifiable(_claims);
+  List<Claim> get allClaims => List.unmodifiable(_claims);
 
   Claim? getClaimById(String id) {
     try {
