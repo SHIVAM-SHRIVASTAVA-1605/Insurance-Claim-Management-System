@@ -56,26 +56,50 @@ class ClaimProvider extends ChangeNotifier {
   void deleteBillFromClaim(String claimId, String billId) {
     final claim = getClaimById(claimId);
     if (claim != null) {
-      final updatedBills = claim.bills.where((bill) => bill.id != billId).toList();
+      final updatedBills =
+          claim.bills.where((bill) => bill.id != billId).toList();
       updateClaim(claim.copyWith(bills: updatedBills));
     }
   }
 
-  // Status transitions
+  // Status transitions - Following insurance claim workflow
   bool canTransitionTo(Claim claim, ClaimStatus newStatus) {
     switch (claim.status) {
       case ClaimStatus.draft:
+        // Draft can only be submitted
         return newStatus == ClaimStatus.submitted;
       case ClaimStatus.submitted:
-        return newStatus == ClaimStatus.approved || 
-               newStatus == ClaimStatus.rejected;
+        // Submitted can be approved, rejected, or partially settled by insurance
+        return newStatus == ClaimStatus.approved ||
+            newStatus == ClaimStatus.rejected ||
+            newStatus == ClaimStatus.partiallySettled;
       case ClaimStatus.approved:
-        return newStatus == ClaimStatus.partiallySettled;
+        // Approved can be settled (full or partial)
+        return newStatus == ClaimStatus.partiallySettled ||
+            newStatus == ClaimStatus.settled;
       case ClaimStatus.rejected:
+        // Rejected is final - cannot change
         return false;
       case ClaimStatus.partiallySettled:
+        // Partially settled can only move to fully settled
+        return newStatus == ClaimStatus.settled;
+      case ClaimStatus.settled:
+        // Settled is final - cannot change
         return false;
     }
+  }
+
+  // Check if claim can be edited (bills, patient info, etc.)
+  bool canEditClaim(Claim claim) {
+    // Only draft claims can be edited
+    return claim.status == ClaimStatus.draft;
+  }
+
+  // Check if financial updates (advances, settlements) are allowed
+  bool canUpdateFinancials(Claim claim) {
+    // Can update financials for approved or partially settled claims
+    return claim.status == ClaimStatus.approved ||
+        claim.status == ClaimStatus.partiallySettled;
   }
 
   void updateClaimStatus(String claimId, ClaimStatus newStatus) {

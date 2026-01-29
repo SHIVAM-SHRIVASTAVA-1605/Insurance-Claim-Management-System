@@ -3,7 +3,8 @@ enum ClaimStatus {
   submitted,
   approved,
   rejected,
-  partiallySettled;
+  partiallySettled,
+  settled;
 
   String get displayName {
     switch (this) {
@@ -17,6 +18,8 @@ enum ClaimStatus {
         return 'Rejected';
       case ClaimStatus.partiallySettled:
         return 'Partially Settled';
+      case ClaimStatus.settled:
+        return 'Settled';
     }
   }
 
@@ -32,6 +35,8 @@ enum ClaimStatus {
         return 'Claim has been rejected';
       case ClaimStatus.partiallySettled:
         return 'Claim is partially settled';
+      case ClaimStatus.settled:
+        return 'Claim is fully settled';
     }
   }
 }
