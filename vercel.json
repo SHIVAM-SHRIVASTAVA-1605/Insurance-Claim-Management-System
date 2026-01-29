@@ -1,9 +1,19 @@
 {
   "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
   "routes": [
     {
       "src": "^/$",
       "dest": "/website/index.html"
+    },
+    {
+      "src": "^/insurance-claim-management\\.apk$",
+      "dest": "/public/insurance-claim-management.apk",
+      "headers": {
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Disposition": "attachment; filename=insurance-claim-management.apk"
+      }
     },
     {
       "src": "^/app/?$",
@@ -14,10 +24,11 @@
       "dest": "/build/web/$1"
     },
     {
-      "handle": "filesystem"
+      "src": "^/(.*)\\.(js|css|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|json|wasm|data)$",
+      "dest": "/build/web/$1"
     },
     {
-      "src": "/(.*)",
+      "src": ".*",
       "dest": "/build/web/index.html"
     }
   ]
