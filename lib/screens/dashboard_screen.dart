@@ -469,14 +469,109 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         // Claims List
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: filteredClaims.length,
-            itemBuilder: (context, index) {
-              final claim = filteredClaims[index];
-              return _buildClaimCard(context, claim);
-            },
-          ),
+          child: filteredClaims.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.folder_open,
+                            size: 64,
+                            color: const Color(0xFF6366F1),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'No Claims Yet',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No claims match your search \"$_searchQuery\"'
+                              : 'Start by creating your first insurance claim',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (_searchQuery.isEmpty) ...[
+                          const SizedBox(height: 32),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.blue[200]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.lightbulb_outline,
+                                        color: Colors.blue[700], size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Quick Start Guide',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue[900],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                _buildQuickStartStep(
+                                    '1',
+                                    'Tap the + button below',
+                                    Icons.add_circle_outline),
+                                const SizedBox(height: 8),
+                                _buildQuickStartStep(
+                                    '2',
+                                    'Enter patient details',
+                                    Icons.person_outline),
+                                const SizedBox(height: 8),
+                                _buildQuickStartStep('3', 'Add medical bills',
+                                    Icons.receipt_long_outlined),
+                                const SizedBox(height: 8),
+                                _buildQuickStartStep(
+                                    '4',
+                                    'Submit for processing',
+                                    Icons.send_outlined),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filteredClaims.length,
+                  itemBuilder: (context, index) {
+                    final claim = filteredClaims[index];
+                    return _buildClaimCard(context, claim);
+                  },
+                ),
         ),
       ],
     );
@@ -742,6 +837,43 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuickStartStep(String number, String text, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: Colors.blue[700],
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Icon(icon, size: 18, color: Colors.blue[700]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -129,9 +129,47 @@ class ClaimDetailScreen extends StatelessWidget {
                           ),
                           TextButton(
                             onPressed: () {
-                              claimProvider.deleteClaim(claimId);
+                              final deletedClaim = claim;
+                              bool undoClicked = false;
+
+                              claimProvider.deleteClaim(claimId, noSave: true);
                               Navigator.pop(context); // Close dialog
                               Navigator.pop(context); // Go back to dashboard
+
+                              // Show undo snackbar
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Claim for ${deletedClaim.patientName} deleted'),
+                                      backgroundColor: Colors.red[700],
+                                      duration: const Duration(seconds: 5),
+                                      action: SnackBarAction(
+                                        label: 'UNDO',
+                                        textColor: Colors.white,
+                                        onPressed: () {
+                                          undoClicked = true;
+                                          claimProvider
+                                              .restoreClaim(deletedClaim);
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Claim restored'),
+                                              backgroundColor: Colors.green,
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                  .closed
+                                  .then((reason) {
+                                // Only save after snackbar is dismissed without undo
+                                if (!undoClicked) {
+                                  claimProvider.deleteClaim(deletedClaim.id);
+                                }
+                              });
                             },
                             child: const Text(
                               'Delete',
@@ -527,16 +565,45 @@ class ClaimDetailScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(32),
                         child: Column(
                           children: [
-                            Icon(Icons.receipt_long,
-                                size: 64, color: Colors.grey[400]),
-                            const SizedBox(height: 12),
-                            Text(
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.receipt_long,
+                                  size: 48, color: Colors.blue[700]),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
                               'No bills added yet',
                               style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add bills to track medical expenses for this claim',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            if (canEdit) ...[
+                              const SizedBox(height: 16),
+                              Text(
+                                '💡 Tip: Click "Add Bill" button above to get started',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.blue[700],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -668,10 +735,57 @@ class ClaimDetailScreen extends StatelessWidget {
                                 ),
                                 TextButton(
                                   onPressed: () {
-                                    Provider.of<ClaimProvider>(context,
-                                            listen: false)
-                                        .deleteBillFromClaim(claimId, bill.id);
+                                    final claimProvider =
+                                        Provider.of<ClaimProvider>(context,
+                                            listen: false);
+                                    final deletedBill = claimProvider
+                                        .deleteBillFromClaim(claimId, bill.id,
+                                            noSave: true);
                                     Navigator.pop(context);
+
+                                    if (deletedBill != null) {
+                                      bool undoClicked = false;
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Bill "${deletedBill.description}" deleted'),
+                                              backgroundColor: Colors.red[700],
+                                              duration:
+                                                  const Duration(seconds: 5),
+                                              action: SnackBarAction(
+                                                label: 'UNDO',
+                                                textColor: Colors.white,
+                                                onPressed: () {
+                                                  undoClicked = true;
+                                                  claimProvider
+                                                      .restoreBillToClaim(
+                                                          claimId, deletedBill);
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content:
+                                                          Text('Bill restored'),
+                                                      backgroundColor:
+                                                          Colors.green,
+                                                      duration:
+                                                          Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          )
+                                          .closed
+                                          .then((_) {
+                                        // Only save after snackbar is dismissed without undo
+                                        if (!undoClicked) {
+                                          claimProvider.deleteBillFromClaim(
+                                              claimId, deletedBill.id);
+                                        }
+                                      });
+                                    }
                                   },
                                   child: const Text(
                                     'Delete',

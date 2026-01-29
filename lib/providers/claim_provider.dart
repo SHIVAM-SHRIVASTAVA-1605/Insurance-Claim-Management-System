@@ -79,8 +79,17 @@ class ClaimProvider extends ChangeNotifier {
     }
   }
 
-  void deleteClaim(String claimId) {
+  void deleteClaim(String claimId, {bool noSave = false}) {
     _claims.removeWhere((claim) => claim.id == claimId);
+    notifyListeners();
+    if (!noSave) {
+      _saveClaims();
+    }
+  }
+
+  // Restore a deleted claim (for undo)
+  void restoreClaim(Claim claim) {
+    _claims.add(claim);
     notifyListeners();
     _saveClaims();
   }
@@ -104,13 +113,31 @@ class ClaimProvider extends ChangeNotifier {
     }
   }
 
-  void deleteBillFromClaim(String claimId, String billId) {
+  Bill? deleteBillFromClaim(String claimId, String billId,
+      {bool noSave = false}) {
     final claim = getClaimById(claimId);
     if (claim != null) {
+      final billToDelete = claim.bills.firstWhere((bill) => bill.id == billId);
       final updatedBills =
           claim.bills.where((bill) => bill.id != billId).toList();
-      updateClaim(claim.copyWith(bills: updatedBills));
+      final updatedClaim = claim.copyWith(bills: updatedBills);
+
+      final index = _claims.indexWhere((c) => c.id == updatedClaim.id);
+      if (index != -1) {
+        _claims[index] = updatedClaim;
+        notifyListeners();
+        if (!noSave) {
+          _saveClaims();
+        }
+      }
+      return billToDelete;
     }
+    return null;
+  }
+
+  // Restore a deleted bill (for undo)
+  void restoreBillToClaim(String claimId, Bill bill) {
+    addBillToClaim(claimId, bill);
   }
 
   // Status transitions - Following insurance claim workflow
