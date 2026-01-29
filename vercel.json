@@ -1,21 +1,24 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
-      "destination": "/website/index.html"
+      "src": "^/$",
+      "dest": "/website/index.html"
     },
     {
-      "source": "/app",
-      "destination": "/build/web/index.html"
+      "src": "^/app/?$",
+      "dest": "/build/web/index.html"
     },
     {
-      "source": "/app/(.*)",
-      "destination": "/build/web/$1"
+      "src": "^/app/(.*)$",
+      "dest": "/build/web/$1"
     },
     {
-      "source": "/(.*)",
-      "destination": "/build/web/$1"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/build/web/index.html"
     }
   ]
 }
