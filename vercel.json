@@ -4,8 +4,27 @@
   "installCommand": "echo 'No install needed'",
   "rewrites": [
     {
+      "source": "/app.apk",
+      "destination": "/website/app.apk"
+    },
+    {
       "source": "/(.*)",
       "destination": "/website/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/app.apk",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=Insurance-Claim-Management.apk"
+        }
+      ]
     }
   ]
 }
