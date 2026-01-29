@@ -1,10 +1,14 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import '../models/claim.dart';
 import '../models/bill.dart';
 import '../models/claim_status.dart';
+import '../models/payment_transaction.dart';
+import '../storage/storage.dart';
 
 class ClaimProvider extends ChangeNotifier {
   final List<Claim> _claims = [];
+  bool _isLoaded = false;
 
   List<Claim> get claims => List.unmodifiable(_claims);
 
@@ -16,9 +20,54 @@ class ClaimProvider extends ChangeNotifier {
     }
   }
 
+  // Save claims to storage (localStorage on web, file on native)
+  Future<void> _saveClaims() async {
+    try {
+      final claimsJson = _claims.map((claim) => claim.toJson()).toList();
+      final jsonString = json.encode(claimsJson);
+      await StorageService.saveData('claims_data', jsonString);
+    } catch (e) {
+      debugPrint('Error saving claims: $e');
+    }
+  }
+
+  // Load claims from storage (localStorage on web, file on native)
+  Future<void> loadClaims() async {
+    if (_isLoaded) return; // Prevent multiple loads
+
+    try {
+      final contents = await StorageService.loadData('claims_data');
+
+      if (contents != null && contents.isNotEmpty) {
+        final List<dynamic> jsonData = json.decode(contents);
+        _claims.clear();
+        _claims.addAll(jsonData.map((json) => Claim.fromJson(json)).toList());
+        _isLoaded = true;
+        notifyListeners();
+      } else {
+        // No saved data, initialize with sample data
+        initializeSampleData();
+        _isLoaded = true;
+      }
+    } catch (e) {
+      debugPrint('Error loading claims: $e');
+      // If error loading, initialize with sample data
+      initializeSampleData();
+      _isLoaded = true;
+    }
+  }
+
   void addClaim(Claim claim) {
     _claims.add(claim);
     notifyListeners();
+    _saveClaims();
+  }
+
+  // Check if patient ID already exists (excluding the current claim if editing)
+  bool isPatientIdDuplicate(String patientId, {String? excludeClaimId}) {
+    return _claims.any((claim) =>
+        claim.patientId.toLowerCase() == patientId.toLowerCase() &&
+        claim.id != excludeClaimId);
   }
 
   void updateClaim(Claim updatedClaim) {
@@ -26,12 +75,14 @@ class ClaimProvider extends ChangeNotifier {
     if (index != -1) {
       _claims[index] = updatedClaim;
       notifyListeners();
+      _saveClaims();
     }
   }
 
   void deleteClaim(String claimId) {
     _claims.removeWhere((claim) => claim.id == claimId);
     notifyListeners();
+    _saveClaims();
   }
 
   // Bill operations
@@ -109,17 +160,61 @@ class ClaimProvider extends ChangeNotifier {
     }
   }
 
-  void updateAdvances(String claimId, double advances) {
+  void updateAdvances(String claimId, double amount, PaymentMethod method,
+      {String? notes}) {
     final claim = getClaimById(claimId);
     if (claim != null) {
-      updateClaim(claim.copyWith(advances: advances));
+      final transaction = PaymentTransaction(
+        amount: amount,
+        type: PaymentType.advance,
+        method: method,
+        notes: notes,
+      );
+      final updatedHistory = [...claim.paymentHistory, transaction];
+      final totalAdvances = updatedHistory
+          .where((t) => t.type == PaymentType.advance)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      final updatedClaim = claim.copyWith(
+        paymentHistory: updatedHistory,
+        advances: totalAdvances,
+      );
+
+      // Auto-settle if pending amount is 0
+      if (updatedClaim.pendingAmount <= 0 &&
+          updatedClaim.status != ClaimStatus.settled) {
+        updateClaim(updatedClaim.copyWith(status: ClaimStatus.settled));
+      } else {
+        updateClaim(updatedClaim);
+      }
     }
   }
 
-  void updateSettlements(String claimId, double settlements) {
+  void updateSettlements(String claimId, double amount, PaymentMethod method,
+      {String? notes}) {
     final claim = getClaimById(claimId);
     if (claim != null) {
-      updateClaim(claim.copyWith(settlements: settlements));
+      final transaction = PaymentTransaction(
+        amount: amount,
+        type: PaymentType.settlement,
+        method: method,
+        notes: notes,
+      );
+      final updatedHistory = [...claim.paymentHistory, transaction];
+      final totalSettlements = updatedHistory
+          .where((t) => t.type == PaymentType.settlement)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      final updatedClaim = claim.copyWith(
+        paymentHistory: updatedHistory,
+        settlements: totalSettlements,
+      );
+
+      // Auto-settle if pending amount is 0
+      if (updatedClaim.pendingAmount <= 0 &&
+          updatedClaim.status != ClaimStatus.settled) {
+        updateClaim(updatedClaim.copyWith(status: ClaimStatus.settled));
+      } else {
+        updateClaim(updatedClaim);
+      }
     }
   }
 

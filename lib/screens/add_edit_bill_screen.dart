@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/claim_provider.dart';
 import '../models/bill.dart';
@@ -56,6 +57,15 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.bill != null;
+    final claimProvider = Provider.of<ClaimProvider>(context);
+    final claim = claimProvider.getClaimById(widget.claimId);
+
+    if (claim == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Add Bill')),
+        body: const Center(child: Text('Claim not found')),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -89,16 +99,21 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                 labelText: 'Amount',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.currency_rupee),
-                helperText: 'Enter the bill amount',
+                helperText: 'Enter the bill amount (positive values only)',
               ),
-              keyboardType: TextInputType.number,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.deny(RegExp(r'[-]')),
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter an amount';
                 }
                 final amount = double.tryParse(value);
                 if (amount == null || amount <= 0) {
-                  return 'Please enter a valid amount';
+                  return 'Please enter a valid positive amount';
                 }
                 return null;
               },
@@ -128,7 +143,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               title: const Text('Bill Date'),
               subtitle: Text(
                 _billDate == null
-                    ? 'Not selected'
+                    ? 'Not selected (must be on or after admission date)'
                     : '${_billDate!.day}/${_billDate!.month}/${_billDate!.year}',
               ),
               trailing: const Icon(Icons.calendar_today),
@@ -140,8 +155,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                 final date = await showDatePicker(
                   context: context,
                   initialDate: _billDate ?? DateTime.now(),
-                  firstDate: DateTime(2020),
+                  firstDate: claim.admissionDate,
                   lastDate: DateTime.now(),
+                  helpText: 'Select bill date (on or after admission)',
                 );
                 if (date != null) {
                   setState(() {
@@ -183,7 +199,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
 
       final claimProvider = Provider.of<ClaimProvider>(context, listen: false);
       final amount = double.parse(_amountController.text);
-      
+
       if (widget.bill == null) {
         // Add new bill
         final newBill = Bill(
@@ -193,7 +209,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
           category: _selectedCategory,
         );
         claimProvider.addBillToClaim(widget.claimId, newBill);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Bill added successfully'),
@@ -209,7 +225,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
           category: _selectedCategory,
         );
         claimProvider.updateBillInClaim(widget.claimId, updatedBill);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Bill updated successfully'),
@@ -217,7 +233,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
           ),
         );
       }
-      
+
       Navigator.pop(context);
     }
   }

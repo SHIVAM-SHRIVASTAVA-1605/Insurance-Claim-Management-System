@@ -157,10 +157,19 @@ class _AddEditClaimScreenState extends State<AddEditClaimScreen> {
                 side: BorderSide(color: Colors.grey[400]!),
               ),
               onTap: () async {
+                if (_admissionDate == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select admission date first'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
                 final date = await showDatePicker(
                   context: context,
                   initialDate: _dischargeDate ?? DateTime.now(),
-                  firstDate: _admissionDate ?? DateTime(2020),
+                  firstDate: _admissionDate!,
                   lastDate: DateTime.now(),
                 );
                 if (date != null) {
@@ -202,8 +211,22 @@ class _AddEditClaimScreenState extends State<AddEditClaimScreen> {
       }
 
       final claimProvider = Provider.of<ClaimProvider>(context, listen: false);
-      
+
       if (widget.claim == null) {
+        // Check for duplicate patient ID when creating new claim
+        if (claimProvider.isPatientIdDuplicate(_patientIdController.text)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Patient ID "${_patientIdController.text}" already exists. Please use a unique ID.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+
         // Create new claim
         final newClaim = Claim(
           patientName: _patientNameController.text,
@@ -214,7 +237,7 @@ class _AddEditClaimScreenState extends State<AddEditClaimScreen> {
           status: ClaimStatus.draft,
         );
         claimProvider.addClaim(newClaim);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Claim created successfully'),
@@ -222,6 +245,21 @@ class _AddEditClaimScreenState extends State<AddEditClaimScreen> {
           ),
         );
       } else {
+        // Check for duplicate patient ID when updating (excluding current claim)
+        if (claimProvider.isPatientIdDuplicate(_patientIdController.text,
+            excludeClaimId: widget.claim!.id)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Patient ID "${_patientIdController.text}" is already used by another claim.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+
         // Update existing claim
         final updatedClaim = widget.claim!.copyWith(
           patientName: _patientNameController.text,
@@ -231,7 +269,7 @@ class _AddEditClaimScreenState extends State<AddEditClaimScreen> {
           dischargeDate: _dischargeDate,
         );
         claimProvider.updateClaim(updatedClaim);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Claim updated successfully'),
@@ -239,7 +277,7 @@ class _AddEditClaimScreenState extends State<AddEditClaimScreen> {
           ),
         );
       }
-      
+
       Navigator.pop(context);
     }
   }

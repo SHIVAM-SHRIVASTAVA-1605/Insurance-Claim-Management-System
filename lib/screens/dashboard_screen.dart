@@ -17,6 +17,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  String _sortBy = 'date'; // 'date', 'amount', 'name'
 
   @override
   void initState() {
@@ -27,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -61,32 +65,151 @@ class _DashboardScreenState extends State<DashboardScreen>
         elevation: 0,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort by',
+            onSelected: (value) {
+              setState(() {
+                _sortBy = value;
+              });
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'date',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: _sortBy == 'date'
+                          ? const Color(0xFF6366F1)
+                          : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Date (Newest first)',
+                      style: TextStyle(
+                        color: _sortBy == 'date'
+                            ? const Color(0xFF6366F1)
+                            : Colors.black87,
+                        fontWeight: _sortBy == 'date'
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'amount',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.currency_rupee,
+                      size: 18,
+                      color: _sortBy == 'amount'
+                          ? const Color(0xFF6366F1)
+                          : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Amount (Highest first)',
+                      style: TextStyle(
+                        color: _sortBy == 'amount'
+                            ? const Color(0xFF6366F1)
+                            : Colors.black87,
+                        fontWeight: _sortBy == 'amount'
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'name',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sort_by_alpha,
+                      size: 18,
+                      color: _sortBy == 'name'
+                          ? const Color(0xFF6366F1)
+                          : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Patient Name (A-Z)',
+                      style: TextStyle(
+                        color: _sortBy == 'name'
+                            ? const Color(0xFF6366F1)
+                            : Colors.black87,
+                        fontWeight: _sortBy == 'name'
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              setState(() {
+                _searchQuery = '';
+                _searchController.clear();
+              });
+              _showSearchDialog();
+            },
+            tooltip: 'Search claims',
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
             color: Colors.white,
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicatorColor: const Color(0xFF6366F1),
-              indicatorWeight: 3,
-              labelColor: const Color(0xFF6366F1),
-              unselectedLabelColor: const Color(0xFF6B7280),
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-              tabs: const [
-                Tab(text: 'All Claims'),
-                Tab(text: 'Partially Settled'),
-                Tab(text: 'Settled'),
-                Tab(text: 'Approved'),
-                Tab(text: 'Rejected'),
-              ],
+            child: Consumer<ClaimProvider>(
+              builder: (context, claimProvider, child) {
+                final claims = claimProvider.claims;
+                final partialCount = claims
+                    .where((c) => c.status == ClaimStatus.partiallySettled)
+                    .length;
+                final settledCount =
+                    claims.where((c) => c.status == ClaimStatus.settled).length;
+                final approvedCount = claims
+                    .where((c) => c.status == ClaimStatus.approved)
+                    .length;
+                final rejectedCount = claims
+                    .where((c) => c.status == ClaimStatus.rejected)
+                    .length;
+
+                return TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  indicatorColor: const Color(0xFF6366F1),
+                  indicatorWeight: 3,
+                  labelColor: const Color(0xFF6366F1),
+                  unselectedLabelColor: const Color(0xFF6B7280),
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                  tabs: [
+                    Tab(text: 'All (${claims.length})'),
+                    Tab(text: 'Partial ($partialCount)'),
+                    Tab(text: 'Settled ($settledCount)'),
+                    Tab(text: 'Approved ($approvedCount)'),
+                    Tab(text: 'Rejected ($rejectedCount)'),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -155,19 +278,51 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildClaimsList(
       BuildContext context, ClaimProvider claimProvider, List<Claim> claims) {
-    if (claims.isEmpty) {
+    // Create mutable copy for filtering and sorting
+    List<Claim> filteredClaims = List.from(claims);
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filteredClaims = filteredClaims.where((claim) {
+        final query = _searchQuery.toLowerCase();
+        return claim.patientName.toLowerCase().contains(query) ||
+            claim.patientId.toLowerCase().contains(query) ||
+            claim.hospitalName.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    // Apply sorting
+    switch (_sortBy) {
+      case 'date':
+        filteredClaims.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case 'amount':
+        filteredClaims
+            .sort((a, b) => b.totalBillAmount.compareTo(a.totalBillAmount));
+        break;
+      case 'name':
+        filteredClaims.sort((a, b) =>
+            a.patientName.toLowerCase().compareTo(b.patientName.toLowerCase()));
+        break;
+    }
+
+    if (filteredClaims.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.assignment_outlined,
+              _searchQuery.isNotEmpty
+                  ? Icons.search_off
+                  : Icons.assignment_outlined,
               size: 80,
               color: Colors.grey[400],
             ),
             const SizedBox(height: 16),
             Text(
-              'No claims found',
+              _searchQuery.isNotEmpty
+                  ? 'No matching claims'
+                  : 'No claims found',
               style: TextStyle(
                 fontSize: 20,
                 color: Colors.grey[600],
@@ -176,12 +331,26 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap the + button to create a new claim',
+              _searchQuery.isNotEmpty
+                  ? 'Try a different search term'
+                  : 'Tap the + button to create a new claim',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[500],
               ),
             ),
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                },
+                child: const Text('Clear Search'),
+              ),
+            ],
           ],
         ),
       );
@@ -302,9 +471,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: claims.length,
+            itemCount: filteredClaims.length,
             itemBuilder: (context, index) {
-              final claim = claims[index];
+              final claim = filteredClaims[index];
               return _buildClaimCard(context, claim);
             },
           ),
@@ -532,6 +701,47 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
       ],
+    );
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Search Claims'),
+        content: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Patient name, ID, or hospital',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _searchQuery = '';
+                _searchController.clear();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Clear'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Search'),
+          ),
+        ],
+      ),
     );
   }
 }
