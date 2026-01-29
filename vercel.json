@@ -2,8 +2,20 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/website/index.html"
+    },
+    {
+      "source": "/app",
+      "destination": "/build/web/index.html"
+    },
+    {
+      "source": "/app/(.*)",
+      "destination": "/build/web/$1"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/build/web/$1"
     }
   ]
 }
